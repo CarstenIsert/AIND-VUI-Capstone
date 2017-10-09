@@ -100,6 +100,7 @@ def deep_rnn_model(input_dim, units, recur_layers, output_dim=29):
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
     
+    # This code uses standard iteration to build the stacked network
     input_from_prev_layer = input_data
     for layer in range(0, recur_layers):
         # Add recurrent layers, each with batch normalization
@@ -123,10 +124,16 @@ def bidirectional_rnn_model(input_dim, units, output_dim=29):
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
-    # TODO: Add bidirectional recurrent layer
-    bidir_rnn = ...
-    # TODO: Add a TimeDistributed(Dense(output_dim)) layer
-    time_dense = ...
+    # Add bidirectional recurrent layer
+    bidir_rnn = Bidirectional(GRU(units, return_sequences=True, implementation=2, name='bidir_rnn'), 
+                              merge_mode='concat')(input_data)
+
+    # DON'T add batch normalization as it is not explicitly mentioned in the requirements 
+    # bn_rnn = BatchNormalization(name='rnn_bn')(bidir_rnn)
+
+    # Add a TimeDistributed(Dense(output_dim)) layer
+    time_dense = TimeDistributed(Dense(output_dim))(bidir_rnn)  
+    
     # Add softmax activation layer
     y_pred = Activation('softmax', name='softmax')(time_dense)
     # Specify the model
@@ -135,18 +142,42 @@ def bidirectional_rnn_model(input_dim, units, output_dim=29):
     print(model.summary())
     return model
 
-def final_model():
+def final_model(input_dim, filters, kernel_size, conv_stride,
+    conv_border_mode, units, recur_layers=2, output_dim=29):
     """ Build a deep network for speech 
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
-    # TODO: Specify the layers in your network
-    ...
-    # TODO: Add softmax activation layer
-    y_pred = ...
+
+    # Add convolutional layer
+    conv_1d = Conv1D(filters, kernel_size, 
+                     strides=conv_stride, 
+                     padding=conv_border_mode,
+                     activation='relu',
+                     name='conv1d')(input_data)
+    # Add batch normalization
+    bn_cnn = BatchNormalization(name='bn_conv_1d')(conv_1d)
+
+    # This code uses standard iteration to build the stacked network
+    input_from_prev_layer = bn_cnn
+    for layer in range(0, recur_layers):
+        # Add recurrent layers, each with batch normalization
+        gru_rnn = GRU(units, return_sequences=True, implementation=2, dropout=0.2, name='rnn'+str(layer))(input_from_prev_layer)
+        # Add batch normalization 
+        bn_rnn = BatchNormalization(name='rnn_bn'+str(layer))(gru_rnn)
+        input_from_prev_layer = bn_rnn
+    
+    # Add a TimeDistributed(Dense(output_dim)) layer
+    time_dense = TimeDistributed(Dense(output_dim))(input_from_prev_layer)
+    
+    # Add softmax activation layer
+    y_pred = Activation('softmax', name='softmax')(time_dense)
     # Specify the model
     model = Model(inputs=input_data, outputs=y_pred)
-    # TODO: Specify model.output_length
-    model.output_length = ...
+    
+    # Need to adjust the output length because of the convolutional layer
+    model.output_length = lambda x: cnn_output_length(x, kernel_size, conv_border_mode, conv_stride)
+    
     print(model.summary())
     return model
+
