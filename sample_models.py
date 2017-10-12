@@ -1,6 +1,6 @@
 from keras import backend as K
 from keras.models import Model
-from keras.layers import (BatchNormalization, Conv1D, Dense, Input, 
+from keras.layers import (BatchNormalization, Conv1D, Dropout, Dense, Input, 
     TimeDistributed, Activation, Bidirectional, SimpleRNN, GRU, LSTM)
 #from boto.dynamodb.batch import Batch
 
@@ -21,7 +21,9 @@ def simple_rnn_model(input_dim, output_dim=29):
     return model
 
 def rnn_model(input_dim, units, activation, output_dim=29):
-    """ Build a recurrent network for speech 
+    """ 
+    Model 1
+    Build a recurrent network for speech 
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
@@ -44,7 +46,9 @@ def rnn_model(input_dim, units, activation, output_dim=29):
 
 def cnn_rnn_model(input_dim, filters, kernel_size, conv_stride,
     conv_border_mode, units, output_dim=29):
-    """ Build a recurrent + convolutional network for speech 
+    """ 
+    Model 2
+    Build a recurrent + convolutional network for speech 
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
@@ -95,7 +99,9 @@ def cnn_output_length(input_length, filter_size, border_mode, stride,
     return (output_length + stride - 1) // stride
 
 def deep_rnn_model(input_dim, units, recur_layers, output_dim=29):
-    """ Build a deep recurrent network for speech 
+    """ 
+    Model 3
+    Build a deep recurrent network for speech 
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
@@ -120,7 +126,9 @@ def deep_rnn_model(input_dim, units, recur_layers, output_dim=29):
     return model
 
 def bidirectional_rnn_model(input_dim, units, output_dim=29):
-    """ Build a bidirectional recurrent network for speech
+    """ 
+    Model 4
+    Build a bidirectional recurrent network for speech
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
@@ -143,26 +151,27 @@ def bidirectional_rnn_model(input_dim, units, output_dim=29):
     return model
 
 def final_model(input_dim, filters, kernel_size, conv_stride,
-    conv_border_mode, units, recur_layers=2, output_dim=29):
+    conv_border_mode, units, recur_layers=2, dilation=1, output_dim=29):
     """ Build a deep network for speech 
     """
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
 
-    # Add convolutional layer
+    # Add dilational convolutional layer
     conv_1d = Conv1D(filters, kernel_size, 
-                     strides=conv_stride, 
+                     strides=1, 
                      padding=conv_border_mode,
+                     dilation_rate=dilation,
                      activation='relu',
                      name='conv1d')(input_data)
-    # Add batch normalization
-    bn_cnn = BatchNormalization(name='bn_conv_1d')(conv_1d)
+    dropout = Dropout(0.3)(conv_1d)
+    bn_cnn = BatchNormalization(name='bn_conv_1d')(dropout)
 
     # This code uses standard iteration to build the stacked network
     input_from_prev_layer = bn_cnn
     for layer in range(0, recur_layers):
         # Add recurrent layers, each with batch normalization
-        gru_rnn = GRU(units, return_sequences=True, implementation=2, dropout=0.2, name='rnn'+str(layer))(input_from_prev_layer)
+        gru_rnn = GRU(units, return_sequences=True, implementation=2, dropout=0.3, name='rnn'+str(layer))(input_from_prev_layer)
         # Add batch normalization 
         bn_rnn = BatchNormalization(name='rnn_bn'+str(layer))(gru_rnn)
         input_from_prev_layer = bn_rnn
@@ -176,7 +185,7 @@ def final_model(input_dim, filters, kernel_size, conv_stride,
     model = Model(inputs=input_data, outputs=y_pred)
     
     # Need to adjust the output length because of the convolutional layer
-    model.output_length = lambda x: cnn_output_length(x, kernel_size, conv_border_mode, conv_stride)
+    model.output_length = lambda x: cnn_output_length(x, kernel_size, conv_border_mode, conv_stride, dilation=dilation)
     
     print(model.summary())
     return model
