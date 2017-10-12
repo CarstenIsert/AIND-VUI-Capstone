@@ -151,7 +151,7 @@ def bidirectional_rnn_model(input_dim, units, output_dim=29):
     return model
 
 def final_model(input_dim, filters, kernel_size, conv_stride,
-    conv_border_mode, units, recur_layers=2, dilation=1, output_dim=29):
+    conv_border_mode, units, recur_layers=2, output_dim=29):
     """ Build a deep network for speech 
     """
     # Main acoustic input
@@ -159,9 +159,8 @@ def final_model(input_dim, filters, kernel_size, conv_stride,
 
     # Add dilational convolutional layer
     conv_1d = Conv1D(filters, kernel_size, 
-                     strides=1, 
+                     strides=conv_stride, 
                      padding=conv_border_mode,
-                     dilation_rate=dilation,
                      activation='relu',
                      name='conv1d')(input_data)
     dropout = Dropout(0.3)(conv_1d)
