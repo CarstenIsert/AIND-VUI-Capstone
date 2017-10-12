@@ -157,7 +157,7 @@ def final_model(input_dim, filters, kernel_size, conv_stride,
     # Main acoustic input
     input_data = Input(name='the_input', shape=(None, input_dim))
 
-    # Add dilational convolutional layer
+    # Add convolutional layer
     conv_1d = Conv1D(filters, kernel_size, 
                      strides=conv_stride, 
                      padding=conv_border_mode,
@@ -184,7 +184,7 @@ def final_model(input_dim, filters, kernel_size, conv_stride,
     model = Model(inputs=input_data, outputs=y_pred)
     
     # Need to adjust the output length because of the convolutional layer
-    model.output_length = lambda x: cnn_output_length(x, kernel_size, conv_border_mode, conv_stride, dilation=dilation)
+    model.output_length = lambda x: cnn_output_length(x, kernel_size, conv_border_mode, conv_stride)
     
     print(model.summary())
     return model
